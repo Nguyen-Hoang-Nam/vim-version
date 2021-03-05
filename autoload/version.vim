@@ -1,6 +1,9 @@
 let s:PACKAGENAME = '\v\C\"\@?[^A-Z\._][^A-Z~\)\(\!\*]*\":\s*\"'
 let s:SEMVER = '(\^|\~|\>|\<|\=|\>\=|\<\=)?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?'
 
+let s:has_popup = has('textprop') && has('patch-8.2.0286')
+let s:has_float = has('nvim') && exists('*nvim_win_set_config')
+
 function! s:CheckPackageFile()
 	let l:filename = expand('%:t')
 	return l:filename == 'package.json'
@@ -45,6 +48,20 @@ function! s:FilterVersion(all_version)
 	return valid_versions
 endfunction
 
+function! s:Valid() 
+	let l:valid = 1
+
+	if !s:CheckPackageFile()
+		let l:valid = 0
+		echo 'Invalid file'
+	elseif !s:CheckPackageLine()
+		let l:valid = 0
+		echo 'Invalid line'
+	endif
+	
+	return l:valid
+endfunction
+
 function! s:LastestVersion(package)
 	let cmd = 'curl -s https://registry.npmjs.org/'.a:package.' | sed "s/,/\n/g" | awk "/dist-tags/{print}" | grep -Po "(?<=\")[0-9].*(?=\")"'
 	let l:version = system(cmd)
@@ -62,17 +79,7 @@ function! s:AllVersion(package)
 endfunction
 
 function! version#lastest(args)
-	let l:valid = 1
-
-	if !s:CheckPackageFile()
-		let l:valid = 0
-		echo 'Invalid file'
-	endif
-
-	if !s:CheckPackageLine()
-		let l:valid = 0
-		echo 'Invalid line'
-	endif
+	let l:valid = s:Valid()
 
 	if l:valid
 		let l:elements = s:GetPackageElement()
@@ -89,46 +96,56 @@ function! version#lastest(args)
 endfunction
 
 function! version#all()
-	let l:valid = 1
-
-	if !s:CheckPackageFile()
-		let l:valid = 0
-		echo 'Invalid file'
-	endif
-
-	if !s:CheckPackageLine()
-		let l:valid = 0
-		echo 'Invalid line'
-	endif
+	let l:valid = s:Valid()
 
 	if l:valid
 		let l:elements = s:GetPackageElement()
 		let l:valid_versions = s:AllVersion(elements[0])
-		let l:length = len(l:valid_versions)
 
-		for i in [1, 2, 3, 4, 5]
-			echo l:valid_versions[length - i]
-		endfor
+		if s:has_float
+			let buf = nvim_create_buf(v:false, v:true)
+			call nvim_buf_set_lines(buf, 0, -1, v:true, ["test", "text"])
+			let opts = {
+						\ 'relative': 'cursor',
+						\ 'width': 10,
+						\ 'height': 2,
+						\ 'col': 0,
+						\ 'row': 1,
+						\ 'anchor': 'NW',
+						\ 'style': 'minimal'
+						\ }
+			let win = nvim_open_win(buf, 0, opts)
+			"call nvim_win_set_option(win, 'winh1', 'Normal:MyHighlight')
+		elseif s:has_popup
+			echo 'Vim 8'
+		else
+			let l:length = len(l:valid_versions)
 
-		call inputsave()
-		let option = input('(r) replace current version, (m) more: ')
-		call inputrestore()
+			for i in [1, 2, 3, 4, 5]
+				echo l:valid_versions[length - i]
+			endfor
 
-		if option == 'r'
 			call inputsave()
-			let new_version = input('New version: ')
+			let option = input('(r) replace current version, (m) more: ')
 			call inputrestore()
 
-			let l:current = s:TrimVersion(elements[1])
-			let l:newline = substitute(getline('.'), l:current, new_version, '')
-			call setline('.', l:newline)
-		elseif option == 'm'
-			redraw
-			let l:valid_versions = sort(l:valid_versions)
-			let l:valid_versions = reverse(l:valid_versions)
-			for l:version in l:valid_versions
-				echo l:version
-			endfor
+			if option == 'r'
+				call inputsave()
+				let new_version = input('New version: ')
+				call inputrestore()
+
+				let l:current = s:TrimVersion(elements[1])
+				let l:newline = substitute(getline('.'), l:current, new_version, '')
+				call setline('.', l:newline)
+			elseif option == 'm'
+				redraw
+				let l:valid_versions = sort(l:valid_versions)
+				let l:valid_versions = reverse(l:valid_versions)
+
+				for l:version in l:valid_versions
+					echo l:version
+				endfor
+			endif
 		endif
 	endif
 endfunction
