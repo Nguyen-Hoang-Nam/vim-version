@@ -15,19 +15,19 @@ Plug 'Nguyen-Hoang-Nam/vim-version'
 ## Commands
 
 | Command | List |
-| :---: | :---: |
-| :LVersion | Get the lastest version ('-r' to replace) |
+| :--- | :--- |
+| :LVersion | Get the latest version ('-r' to replace) |
 | :AVersions | Get all versions |
 
 ## Usage
 
-Put cursor at the line contain package's name and 's version. Type :AVersions to get the 5 lastest version then press r to replace version or m to show all versions. 
+Put cursor at the line contain package's name and 's version. Type `:AVersions` to get the 5 latest versions then press `r` to replace version or `m` to show all versions. 
 
 ![:AVersion](./vim-version-all.png)
 
-If you only care about lastest version then type :LVersion (-r to replace) to get it.
+If you only care about latest version then type `:LVersion` (`-r` to replace) to get it.
 
-![:LVersion](./vim-version-lastest.png)
+![:LVersion](./vim-version-latest.png)
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
