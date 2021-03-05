@@ -35,11 +35,30 @@ function! s:TrimVersion(version)
 	return result
 endfunction
 
+function! s:FilterVersion(all_version)
+	let valid_versions = []
+	for l:version in a:all_version
+		if l:version =~ '\v'.s:SEMVER
+			let valid_versions = add(valid_versions, l:version)
+		endif
+	endfor
+	return valid_versions
+endfunction
+
 function! s:LastestVersion(package)
 	let cmd = 'curl -s https://registry.npmjs.org/'.a:package.' | sed "s/,/\n/g" | awk "/dist-tags/{print}" | grep -Po "(?<=\")[0-9].*(?=\")"'
 	let l:version = system(cmd)
 	let trim = substitute(l:version, '\v\n+$', '', 'g')
 	return trim
+endfunction
+
+function! s:AllVersion(package)
+	let cmd = 'curl -s https://registry.npmjs.org/'.a:package.' | sed "s/},\|],/\n/g" | awk "/time/{print}" | sed "s/,/\n/g" | sed "s/:.*//" | sed "s/\"//g"'
+	let l:version_time = system(cmd)
+	let l:trim_time = substitute(l:version_time, '\"time\":{', '', 'g')
+	let l:all_version = split(l:trim_time, '\n')
+	let l:valid_versions = s:FilterVersion(l:all_version)
+	return l:valid_versions
 endfunction
 
 function! version#lastest(args)
@@ -69,4 +88,47 @@ function! version#lastest(args)
 	endif
 endfunction
 
+function! version#all()
+	let l:valid = 1
 
+	if !s:CheckPackageFile()
+		let l:valid = 0
+		echo 'Invalid file'
+	endif
+
+	if !s:CheckPackageLine()
+		let l:valid = 0
+		echo 'Invalid line'
+	endif
+
+	if l:valid
+		let l:elements = s:GetPackageElement()
+		let l:valid_versions = s:AllVersion(elements[0])
+		let l:length = len(l:valid_versions)
+
+		for i in [1, 2, 3, 4, 5]
+			echo l:valid_versions[length - i]
+		endfor
+
+		call inputsave()
+		let option = input('(r) replace current version, (m) more: ')
+		call inputrestore()
+
+		if option == 'r'
+			call inputsave()
+			let new_version = input('New version: ')
+			call inputrestore()
+
+			let l:current = s:TrimVersion(elements[1])
+			let l:newline = substitute(getline('.'), l:current, new_version, '')
+			call setline('.', l:newline)
+		elseif option == 'm'
+			redraw
+			let l:valid_versions = sort(l:valid_versions)
+			let l:valid_versions = reverse(l:valid_versions)
+			for l:version in l:valid_versions
+				echo l:version
+			endfor
+		endif
+	endif
+endfunction
